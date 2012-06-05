@@ -1,15 +1,14 @@
 ---
-abstract: 'DBI-based session engine for Dancer'
+abstract: 'DBI based session engine for Dancer'
 author:
   - 'James Aitken <jaitken@cpan.org>'
 build_requires:
-  Dancer: 0
   Test::More: 0
   warnings: 0
 configure_requires:
   ExtUtils::MakeMaker: 6.30
 dynamic_config: 0
-generated_by: 'Dist::Zilla version 4.300016, CPAN::Meta::Converter version 2.120921'
+generated_by: 'Dist::Zilla version 4.300017, CPAN::Meta::Converter version 2.120921'
 license: perl
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
@@ -17,10 +16,8 @@ meta-spec:
 name: Dancer-Session-DBI
 requires:
   DBI: 0
-  Dancer::Config: 0
-  Dancer::Logger: 0
+  Dancer: 0
   Dancer::Session::Abstract: 0
-  JSON::XS: 0
   Try::Tiny: 0
   feature: 0
   parent: 0
@@ -29,4 +26,4 @@ requires:
 resources:
   bugtracker: https://github.com/LoonyPandora/Dancer-Session-DBI/issues
   repository: git://github.com/LoonyPandora/Dancer-Session-DBI.git
-version: 0.1.0
+version: 1.0.0

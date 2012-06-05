@@ -9,10 +9,9 @@ use ExtUtils::MakeMaker 6.30;
 
 
 my %WriteMakefileArgs = (
-  "ABSTRACT" => "DBI-based session engine for Dancer",
+  "ABSTRACT" => "DBI based session engine for Dancer",
   "AUTHOR" => "James Aitken <jaitken\@cpan.org>",
   "BUILD_REQUIRES" => {
-    "Dancer" => 0,
     "Test::More" => 0,
     "warnings" => 0
   },
@@ -25,16 +24,14 @@ my %WriteMakefileArgs = (
   "NAME" => "Dancer::Session::DBI",
   "PREREQ_PM" => {
     "DBI" => 0,
-    "Dancer::Config" => 0,
-    "Dancer::Logger" => 0,
+    "Dancer" => 0,
     "Dancer::Session::Abstract" => 0,
-    "JSON::XS" => 0,
     "Try::Tiny" => 0,
     "feature" => 0,
     "parent" => 0,
     "strict" => 0
   },
-  "VERSION" => "0.1.0",
+  "VERSION" => "1.0.0",
   "test" => {
     "TESTS" => "t/*.t"
   }
