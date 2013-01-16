@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use 5.010;
+use 5.010001;
 
 use ExtUtils::MakeMaker 6.30;
 
@@ -11,10 +11,7 @@ use ExtUtils::MakeMaker 6.30;
 my %WriteMakefileArgs = (
   "ABSTRACT" => "DBI based session engine for Dancer",
   "AUTHOR" => "James Aitken <jaitken\@cpan.org>",
-  "BUILD_REQUIRES" => {
-    "Test::More" => 0,
-    "warnings" => 0
-  },
+  "BUILD_REQUIRES" => {},
   "CONFIGURE_REQUIRES" => {
     "ExtUtils::MakeMaker" => "6.30"
   },
@@ -25,13 +22,10 @@ my %WriteMakefileArgs = (
   "PREREQ_PM" => {
     "DBI" => 0,
     "Dancer" => 0,
-    "Dancer::Session::Abstract" => 0,
-    "Try::Tiny" => 0,
-    "feature" => 0,
-    "parent" => 0,
-    "strict" => 0
+    "Try::Tiny" => "0.01",
+    "parent" => "0.222"
   },
-  "VERSION" => "1.0.0",
+  "VERSION" => "1.1.0",
   "test" => {
     "TESTS" => "t/*.t"
   }

@@ -15,7 +15,7 @@ viable alternatives.
 
 JSON was chosen as the default serialization format, as it is fast, terse, and portable.
 
-B<NOTE: This module is currently only compatible with MySQL and SQLite. This will change in the future>
+Supported databases are MySQL > 4.1.1, PostgreSQL > 9.1, and SQLite > 3.0
 
 =head1 USAGE
 
@@ -50,12 +50,13 @@ If using a C<Memory> table, you must use a C<VARCHAR> type for the C<session_dat
 table type doesn't support C<TEXT>
 
 A timestamp field that updates when a session is updated is recommended, so you can expire sessions
-server-side as well as client-side.
+server-side as well as client-side. You can do this in MySQL with the following SQL. Other database
+engines are left as an exercise for the reader.
 
     `last_active` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 
 This session engine will not automagically remove expired sessions on the server, but with a timestamp
-field as above, you should be able to to do this.
+field as above, you should be able to to do this manually.
 
 =cut
 
@@ -67,7 +68,7 @@ use Dancer qw(:syntax);
 use DBI;
 use Try::Tiny;
 
-our $VERSION = '1.0.0';
+our $VERSION = '1.1.0';
 
 
 =head1 METHODS
@@ -79,11 +80,7 @@ Creates a new session. Returns the session object.
 =cut
 
 sub create {
-    my $self = shift->new;
-
-    $self->flush;
-
-    return $self;
+    return Dancer::Session::DBI->new->flush;
 }
 
 
@@ -103,6 +100,11 @@ sub flush {
     # we are using, and issue the appropriate syntax. Eventually. TODO
     given(lc $self->_dbh->{Driver}{Name}) {
      	when ('mysql') { 
+            # MySQL 4.1.1 made this syntax actually work. Best be extra careful
+            if ($self->_dbh->{mysql_serverversion} < 40101) {
+                die "A minimum of MySQL 4.1.1 is required";
+            }
+
             my $sth = $self->_dbh->prepare_cached(qq{
                 INSERT INTO $quoted_table (id, session_data)
                 VALUES (?, ?)
@@ -115,12 +117,37 @@ sub flush {
         }
 
         when ('sqlite') {
+            # All stable versions of DBD::SQLite use an SQLite version that support upserts
             my $sth = $self->_dbh->prepare_cached(qq{
                 INSERT OR REPLACE INTO $quoted_table (id, session_data) 
-                VALUES (?, coalesce( (SELECT session_data FROM $quoted_table WHERE id = ?), ?) )
+                VALUES (?, ?)
             });
 
-            $sth->execute($self->id, $self->id, $self->_serialize);
+            $sth->execute($self->id, $self->_serialize);
+            $sth->finish();        
+        }
+
+        when ('pg') {
+            # Upserts need writable CTE's, which only appeared in Postgres 9.1
+            if ($self->_dbh->{pg_server_version} < 90100) {
+                die "A minimum of PostgreSQL 9.1 is required";
+            }
+
+            my $sth = $self->_dbh->prepare_cached(qq{
+                WITH upsert AS (
+                    UPDATE $quoted_table
+                    SET session_data = ?
+                    WHERE id = ?
+                    RETURNING id
+                )
+
+                INSERT INTO $quoted_table (id, session_data) 
+                SELECT ?, ?
+                WHERE NOT EXISTS (SELECT 1 FROM upsert) ; 
+            });
+
+            my $session_data = $self->_serialize;
+            $sth->execute($session_data, $self->id, $self->id, $session_data);
             $sth->finish();        
         }
 
@@ -265,7 +292,7 @@ James Aitken <jaitken@cpan.org>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2012 by James Aitken.
+This software is copyright (c) James Aitken.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

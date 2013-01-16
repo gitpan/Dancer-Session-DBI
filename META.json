@@ -4,7 +4,7 @@
       "James Aitken <jaitken@cpan.org>"
    ],
    "dynamic_config" : 0,
-   "generated_by" : "Dist::Zilla version 4.300017, CPAN::Meta::Converter version 2.120921",
+   "generated_by" : "Dist::Zilla version 4.300029, CPAN::Meta::Converter version 2.120921",
    "license" : [
       "perl_5"
    ],
@@ -23,18 +23,9 @@
          "requires" : {
             "DBI" : "0",
             "Dancer" : "0",
-            "Dancer::Session::Abstract" : "0",
-            "Try::Tiny" : "0",
-            "feature" : "0",
-            "parent" : "0",
-            "perl" : "5.010",
-            "strict" : "0"
-         }
-      },
-      "test" : {
-         "requires" : {
-            "Test::More" : "0",
-            "warnings" : "0"
+            "Try::Tiny" : "0.01",
+            "parent" : "0.222",
+            "perl" : "5.010001"
          }
       }
    },
@@ -43,12 +34,13 @@
       "bugtracker" : {
          "web" : "https://github.com/LoonyPandora/Dancer-Session-DBI/issues"
       },
+      "homepage" : "https://github.com/LoonyPandora/Dancer-Session-DBI",
       "repository" : {
          "type" : "git",
-         "url" : "git://github.com/LoonyPandora/Dancer-Session-DBI.git",
+         "url" : "https://github.com/LoonyPandora/Dancer-Session-DBI.git",
          "web" : "https://github.com/LoonyPandora/Dancer-Session-DBI"
       }
    },
-   "version" : "1.0.0"
+   "version" : "1.1.0"
 }
 
