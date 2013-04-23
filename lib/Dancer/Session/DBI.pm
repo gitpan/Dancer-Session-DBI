@@ -22,7 +22,7 @@ Supported databases are MySQL > 4.1.1, PostgreSQL > 9.1, and SQLite > 3.0
 In config.yml
 
   session: "DBI"
-  session_options: 
+  session_options:
       dsn:      "DBI:mysql:database=testing;host=127.0.0.1;port=3306" # DBI Data Source Name
       table:    "sessions"  # Name of the table to store sessions
       user:     "user"      # Username used to connect to the database
@@ -62,13 +62,12 @@ field as above, you should be able to to do this manually.
 
 use strict;
 use parent 'Dancer::Session::Abstract';
-use feature qw(switch);
 
 use Dancer qw(:syntax);
 use DBI;
 use Try::Tiny;
 
-our $VERSION = '1.1.0';
+our $VERSION = '1.2.0';
 
 
 =head1 METHODS
@@ -98,62 +97,64 @@ sub flush {
     # There is no simple cross-database way to do an "upsert"
     # without race-conditions. So we will have to check what database driver
     # we are using, and issue the appropriate syntax. Eventually. TODO
-    given(lc $self->_dbh->{Driver}{Name}) {
-     	when ('mysql') { 
-            # MySQL 4.1.1 made this syntax actually work. Best be extra careful
-            if ($self->_dbh->{mysql_serverversion} < 40101) {
-                die "A minimum of MySQL 4.1.1 is required";
-            }
+    my $driver = lc $self->_dbh->{Driver}{Name};
 
-            my $sth = $self->_dbh->prepare_cached(qq{
-                INSERT INTO $quoted_table (id, session_data)
-                VALUES (?, ?)
-                ON DUPLICATE KEY
-                UPDATE session_data = ?
-            });
-
-            $sth->execute($self->id, $self->_serialize, $self->_serialize);
-            $sth->finish();
+    if ($driver eq 'mysql') {
+        # MySQL 4.1.1 made this syntax actually work. Best be extra careful
+        if ($self->_dbh->{mysql_serverversion} < 40101) {
+            die "A minimum of MySQL 4.1.1 is required";
         }
 
-        when ('sqlite') {
-            # All stable versions of DBD::SQLite use an SQLite version that support upserts
-            my $sth = $self->_dbh->prepare_cached(qq{
-                INSERT OR REPLACE INTO $quoted_table (id, session_data) 
-                VALUES (?, ?)
-            });
+        my $sth = $self->_dbh->prepare(qq{
+            INSERT INTO $quoted_table (id, session_data)
+            VALUES (?, ?)
+            ON DUPLICATE KEY
+            UPDATE session_data = ?
+        });
 
-            $sth->execute($self->id, $self->_serialize);
-            $sth->finish();        
+        $sth->execute($self->id, $self->_serialize, $self->_serialize);
+
+        $self->_dbh->commit() unless $self->_dbh->{AutoCommit};
+
+    } elsif ($driver eq 'sqlite') {
+
+        # All stable versions of DBD::SQLite use an SQLite version that support upserts
+        my $sth = $self->_dbh->prepare(qq{
+            INSERT OR REPLACE INTO $quoted_table (id, session_data) 
+            VALUES (?, ?)
+        });
+
+        $sth->execute($self->id, $self->_serialize);
+        $self->_dbh->commit() unless $self->_dbh->{AutoCommit};
+
+    } elsif ($driver eq 'pg') {
+
+        # Upserts need writable CTE's, which only appeared in Postgres 9.1
+        if ($self->_dbh->{pg_server_version} < 90100) {
+            die "A minimum of PostgreSQL 9.1 is required";
         }
 
-        when ('pg') {
-            # Upserts need writable CTE's, which only appeared in Postgres 9.1
-            if ($self->_dbh->{pg_server_version} < 90100) {
-                die "A minimum of PostgreSQL 9.1 is required";
-            }
+        my $sth = $self->_dbh->prepare(qq{
+            WITH upsert AS (
+                UPDATE $quoted_table
+                SET session_data = ?
+                WHERE id = ?
+                RETURNING id
+            )
 
-            my $sth = $self->_dbh->prepare_cached(qq{
-                WITH upsert AS (
-                    UPDATE $quoted_table
-                    SET session_data = ?
-                    WHERE id = ?
-                    RETURNING id
-                )
+            INSERT INTO $quoted_table (id, session_data)
+            SELECT ?, ?
+            WHERE NOT EXISTS (SELECT 1 FROM upsert);
+        });
 
-                INSERT INTO $quoted_table (id, session_data) 
-                SELECT ?, ?
-                WHERE NOT EXISTS (SELECT 1 FROM upsert) ; 
-            });
+        my $session_data = $self->_serialize;
+        $sth->execute($session_data, $self->id, $self->id, $session_data);
+        $self->_dbh->commit() unless $self->_dbh->{AutoCommit};
 
-            my $session_data = $self->_serialize;
-            $sth->execute($session_data, $self->id, $self->id, $session_data);
-            $sth->finish();        
-        }
+    } else {
 
-     	default {
-            die "MySQL and SQLite are the only currently supported databases";
-        }
+        die "SQLite, MySQL > 4.1.1, and PostgreSQL > 9.1 are the only supported databases";
+
     }
 
     return $self;
@@ -172,26 +173,25 @@ session was found, but could not be deserialized.
 sub retrieve {
     my ($self, $session_id) = @_;
 
+    my $quoted_table = $self->_quote_table;
+
+    my $sth = $self->_dbh->prepare(qq{
+        SELECT session_data
+        FROM $quoted_table
+        WHERE id = ?
+    });
+
+    $sth->execute($session_id);
+    my ($session_data) = $sth->fetchrow_array();
+
     my $session = try {
-        my $quoted_table = $self->_quote_table;
-
-        my $sth = $self->_dbh->prepare_cached(qq{
-            SELECT session_data
-            FROM $quoted_table
-            WHERE id = ?
-        });
-
-        $sth->execute( $session_id );
-        my ($session) = $sth->fetchrow_array();
-        $sth->finish();
-
-        $self->_deserialize($session);        
+        $self->_deserialize($session_data);        
     } catch {
-        warning("Could not retrieve session ID $session_id - $_");
+        warning "Could not retrieve session ID $session_id - $_";
         return;
     };
 
-    return bless $session, __PACKAGE__ if $session;
+    bless $session, __PACKAGE__ if $session;
 }
 
 
@@ -206,13 +206,12 @@ sub destroy {
 
     my $quoted_table = $self->_quote_table;
 
-    my $sth = $self->_dbh->prepare_cached(qq{
+    my $sth = $self->_dbh->prepare(qq{
         DELETE FROM $quoted_table
         WHERE id = ?
     });
 
     $sth->execute($self->id);
-    $sth->finish();
 }
 
 
@@ -262,6 +261,7 @@ sub _serialize {
     }
 
     # A session is by definition ephemeral - Store it compactly
+    # This is the Dancer function, not from JSON.pm
     return to_json({%$self}, { pretty => 0 });
 }
 
@@ -275,6 +275,7 @@ sub _deserialize {
         return $settings->{deserializer}->($json);
     }
 
+    # This is the Dancer function, not from JSON.pm
     return from_json($json);
 }
 
