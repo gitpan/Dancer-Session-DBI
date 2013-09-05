@@ -68,12 +68,12 @@ Write the session to the database. Returns the session object.
 
 Look for a session with the given id.
 
-Returns the session object if found, `undef` if not. Logs a warning if the
-session was found, but could not be deserialized.
+Returns the session object if found, `undef` if not. Logs a debug-level warning
+if the session was found, but could not be deserialized.
 
 ## destroy()
 
-Remove the current session object from the database..
+Remove the current session object from the database.
 
 # SEE ALSO
 

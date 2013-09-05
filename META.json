@@ -4,7 +4,7 @@
       "James Aitken <jaitken@cpan.org>"
    ],
    "dynamic_config" : 0,
-   "generated_by" : "Dist::Zilla version 4.300034, CPAN::Meta::Converter version 2.130880",
+   "generated_by" : "Dist::Zilla version 4.300037, CPAN::Meta::Converter version 2.132140",
    "license" : [
       "perl_5"
    ],
@@ -46,6 +46,6 @@
          "web" : "https://github.com/LoonyPandora/Dancer-Session-DBI"
       }
    },
-   "version" : "1.2.0"
+   "version" : "1.2.1"
 }
 
